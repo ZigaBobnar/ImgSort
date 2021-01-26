@@ -1,7 +1,10 @@
-import fs from 'fs'
+import { Sorter } from './lib/sort';
+import sortConfig from './config';
 
 const initSort = () => {
-    console.log(process.argv)
-}
+    const sorter = new Sorter(sortConfig);
 
-initSort()
+    sorter.start();
+};
+
+initSort();

@@ -1,0 +1,8 @@
+{
+    "tabWidth": 4,
+    "singleQuote": true,
+    "useTabs": false,
+    "endOfLine": "lf",
+    "bracketSpacing": true,
+    "parser": "typescript"
+}
