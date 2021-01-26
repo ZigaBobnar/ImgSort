@@ -1,5 +1,7 @@
-const beginSort = () => {
-    console.log('Begin')
+import fs from 'fs'
+
+const initSort = () => {
+    console.log(process.argv)
 }
 
-beginSort()
+initSort()
