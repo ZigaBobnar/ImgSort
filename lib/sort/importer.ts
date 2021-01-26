@@ -1,18 +1,8 @@
 import fs from 'fs';
-import { FileDate, FileInfo, SortConfig } from '.';
+import { FileDate, FileInfo, FileMoveTask, OutputTasks, SortConfig } from '.';
 import { ExifImage } from 'exif';
 import { FilePath } from './fileInfo';
-
-export interface FileMoveTask {
-    inPath: string;
-    outPath: string;
-}
-
-export interface OutputTasks {
-    requiredDirectories: string[];
-    moveTasks: FileMoveTask[];
-    problematicFiles: FileInfo[];
-}
+import { getTimeForFileName } from '../utils';
 
 class Importer {
     constructor(private config: SortConfig) {}
@@ -166,11 +156,9 @@ class Importer {
             fs.mkdirSync(`${this.config.outputPath}`);
         }
 
-        const importTime = new Date()
-            .toISOString()
-            .replace(/:/g, '.')
-            .slice(0, 19);
-        const importDataFileName = `${this.config.outputPath}/import-${importTime}.json`;
+        const importDataFileName = `${
+            this.config.outputPath
+        }/import-${getTimeForFileName()}.json`;
 
         fs.writeFileSync(
             importDataFileName,
