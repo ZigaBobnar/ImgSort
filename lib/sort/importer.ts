@@ -9,6 +9,7 @@ class Importer {
 
     async import(): Promise<string> {
         const files = this.findFiles(this.config.ingestPath);
+        console.log(`Found ${files.length} files`);
         const fileInfos = await this.getFileInfos(files);
         const outputTasks = this.prepareOutputTasks(fileInfos);
 
@@ -16,6 +17,8 @@ class Importer {
     }
 
     private findFiles(path: string): FilePath[] {
+        console.log(`Searching in ${path}`);
+
         const files = fs.readdirSync(path, {
             withFileTypes: true,
         });
@@ -40,9 +43,19 @@ class Importer {
 
     private async getFileInfos(files: FilePath[]): Promise<FileInfo[]> {
         const fileInfos: FileInfo[] = [];
+        let i = 1;
+        const step = Math.max(4, Math.ceil(files.length / 20));
+        let target = step;
 
         for (const file of files) {
+            if (i > target) {
+                target += step;
+                console.log(`Processed ${i}/${files.length} files`)
+            }
+            
             fileInfos.push(await this.getFileInfo(file));
+
+            i++;
         }
 
         return fileInfos;

@@ -58,7 +58,9 @@ class Executor {
         let taskList = '';
         try {
             for (const mkPath of tasks.mkdir) {
-                fs.mkdirSync(mkPath, { recursive: true });
+                if (this.config.mode == 'normal') {
+                    fs.mkdirSync(mkPath, { recursive: true });
+                }
                 taskList += `mkdir "${mkPath}"\n`;
             }
         } catch (err) {
@@ -70,23 +72,31 @@ class Executor {
         for (const mvFile of tasks.mv) {
             try {
                 if (this.config.moveOptions == 'move') {
-                    fs.renameSync(mvFile.old, mvFile.new);
+                    if (this.config.mode == 'normal') {
+                        fs.renameSync(mvFile.old, mvFile.new);
+                    }
 
                     taskList += `mv "${mvFile.old}" "${mvFile.new}"\n`;
                 } else if (this.config.moveOptions == 'copy') {
-                    fs.copyFileSync(mvFile.old, mvFile.new);
-                    
+                    if (this.config.mode == 'normal') {
+                        fs.copyFileSync(mvFile.old, mvFile.new);
+                    }
+
                     taskList += `cp "${mvFile.old}" "${mvFile.new}"\n`;
                 } else if (this.config.moveOptions == 'copyAndDeleteOld') {
-                    fs.copyFileSync(mvFile.old, mvFile.new);
-                    fs.unlinkSync(mvFile.old);
-                    
+                    if (this.config.mode == 'normal') {
+                        fs.copyFileSync(mvFile.old, mvFile.new);
+                        fs.unlinkSync(mvFile.old);
+                    }
+
                     taskList += `cpRm "${mvFile.old}" "${mvFile.new}"\n`;
                 } else if (this.config.moveOptions == 'ignore') {
                     taskList += `ignore "${mvFile.old}" "${mvFile.new}"\n`;
                 }
             } catch (err) {
-                console.log(`Unable to move file "${mvFile.old}" -> "${mvFile.new}" - ${err}`);
+                console.log(
+                    `Unable to move file "${mvFile.old}" -> "${mvFile.new}" - ${err}`
+                );
             }
         }
         fs.appendFileSync(ranTasksFileName, taskList);
