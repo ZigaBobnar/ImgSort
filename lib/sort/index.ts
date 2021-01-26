@@ -1,5 +1,5 @@
-import { Sorter } from './sorter';
+import { Importer } from './importer';
 import { SortConfig } from './sortConfig';
 import { FileInfo, FileDate } from './fileInfo';
 
-export { Sorter, SortConfig, FileInfo, FileDate };
+export { Importer, SortConfig, FileInfo, FileDate };

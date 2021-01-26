@@ -14,18 +14,15 @@ export interface OutputTasks {
     problematicFiles: FileInfo[];
 }
 
-class Sorter {
+class Importer {
     constructor(private config: SortConfig) {}
 
-    async start(): Promise<void> {
+    async import(): Promise<string> {
         const files = this.findFiles(this.config.ingestPath);
         const fileInfos = await this.getFileInfos(files);
+        const outputTasks = this.prepareOutputTasks(fileInfos);
 
-        const outputTask = this.prepareOutputTasks(fileInfos);
-
-        this.writeReport(outputTask);
-
-        console.log(outputTask);
+        return this.writeImportData(outputTasks);
     }
 
     private findFiles(path: string): FilePath[] {
@@ -66,17 +63,57 @@ class Sorter {
             new ExifImage(
                 { image: `${file.path}/${file.name}` },
                 (error, data) => {
-                    const originalDate =
-                        data?.exif?.DateTimeOriginal ?? data?.exif?.CreateDate;
-                    let date: FileDate | null = null;
-                    if (originalDate) {
-                        const splitDate = originalDate.split(':');
+                    if (error) {
+                        const modifiedTime = fs.statSync(
+                            `${file.path}/${file.name}`
+                        ).mtime;
 
-                        date = {
-                            year: parseInt(splitDate[0]),
-                            month: parseInt(splitDate[1]),
-                            day: parseInt(splitDate[2]),
-                        };
+                        return resolve({
+                            path: file.path,
+                            name: file.name,
+                            date: modifiedTime
+                                ? {
+                                      year: `${modifiedTime.getFullYear()}`,
+                                      month: `${
+                                          modifiedTime.getMonth() + 1
+                                      }`.padStart(2, '0'),
+                                      day: `${modifiedTime.getDate()}`.padStart(
+                                          2,
+                                          '0'
+                                      ),
+                                  }
+                                : null,
+                            error: error.message,
+                        });
+                    }
+
+                    let date: FileDate | null = null;
+                    try {
+                        const originalDate =
+                            data?.exif?.DateTimeOriginal ??
+                            data?.exif?.CreateDate;
+                        if (originalDate) {
+                            const splitDate = originalDate.split(':');
+
+                            date = {
+                                year: `${parseInt(splitDate[0])}`,
+                                month: `${parseInt(splitDate[1])}`.padStart(
+                                    2,
+                                    '0'
+                                ),
+                                day: `${parseInt(splitDate[2])}`.padStart(
+                                    2,
+                                    '0'
+                                ),
+                            };
+                        }
+                    } catch (err) {
+                        return resolve({
+                            path: file.path,
+                            name: file.name,
+                            date: null,
+                            error: `Unable to parse date, ${err}`,
+                        });
                     }
 
                     resolve({
@@ -96,6 +133,7 @@ class Sorter {
 
         for (const file of files) {
             if (
+                !file.error &&
                 file.date &&
                 file.date.year &&
                 file.date.month &&
@@ -123,21 +161,24 @@ class Sorter {
         };
     }
 
-    private writeReport(outputTasks: OutputTasks): void {
+    private writeImportData(outputTasks: OutputTasks): string {
         if (!fs.existsSync(`${this.config.outputPath}`)) {
             fs.mkdirSync(`${this.config.outputPath}`);
         }
 
-        const reportTime = new Date()
+        const importTime = new Date()
             .toISOString()
             .replace(/:/g, '.')
             .slice(0, 19);
+        const importDataFileName = `${this.config.outputPath}/import-${importTime}.json`;
 
         fs.writeFileSync(
-            `${this.config.outputPath}/report-${reportTime}.json`,
+            importDataFileName,
             JSON.stringify(outputTasks, undefined, 4)
         );
+
+        return importDataFileName;
     }
 }
 
-export { Sorter };
+export { Importer };

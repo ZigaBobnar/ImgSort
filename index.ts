@@ -1,8 +1,8 @@
-import { Sorter } from './lib/sort';
+import { Importer } from './lib/sort';
 import sortConfig from './config';
 
-const sorter = new Sorter(sortConfig);
+const importer = new Importer(sortConfig);
 
-sorter.start().then(() => {
-    console.log('Done.')
+importer.import().then((importDataFile) => {
+    console.log(`Import done. Saved import data as ${importDataFile}`)
 })

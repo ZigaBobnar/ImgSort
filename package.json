@@ -1,5 +1,5 @@
 {
-  "name": "photosort",
+  "name": "imgsort",
   "version": "1.0.0",
   "description": "This utility takes all image files from a folder and reorganizes them into date based folder tree structure.",
   "main": "index.js",

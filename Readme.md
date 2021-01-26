@@ -1,4 +1,4 @@
-# PhotoSort
+# ImgSort
 
 This utility takes all image files from a folder and reorganizes them into date based folder tree structure.
 
