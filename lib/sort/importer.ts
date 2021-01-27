@@ -2,7 +2,7 @@ import fs from 'fs';
 import { FileDate, FileInfo, FileMoveTask, OutputTasks, SortConfig } from '.';
 import { ExifImage } from 'exif';
 import { FilePath } from './fileInfo';
-import { getTimeForFileName } from '../utils';
+import { formatOutputFolderName, getTimeForFileName } from '../utils';
 
 class Importer {
     constructor(private config: SortConfig) {}
@@ -142,7 +142,7 @@ class Importer {
                 file.date.month &&
                 file.date.day
             ) {
-                const outputDir = `${this.config.outputPath}/${file.date.year}/${file.date.month}/${file.date.day}`;
+                const outputDir = `${this.config.outputPath}/${formatOutputFolderName(this.config, file.date)}`;
 
                 if (!requiredDirectories.includes(outputDir)) {
                     requiredDirectories.push(outputDir);
