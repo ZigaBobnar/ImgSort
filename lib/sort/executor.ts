@@ -58,6 +58,8 @@ class Executor {
         let taskList = '';
         try {
             for (const mkPath of tasks.mkdir) {
+                console.log(`Creating directory ${mkPath}`)
+
                 if (this.config.mode == 'normal') {
                     fs.mkdirSync(mkPath, { recursive: true });
                 }
@@ -72,18 +74,24 @@ class Executor {
         for (const mvFile of tasks.mv) {
             try {
                 if (this.config.moveOptions == 'move') {
+                    console.log(`Moving file (move) ${mvFile.old} -> ${mvFile.new}`)
+
                     if (this.config.mode == 'normal') {
                         fs.renameSync(mvFile.old, mvFile.new);
                     }
 
                     taskList += `mv "${mvFile.old}" "${mvFile.new}"\n`;
                 } else if (this.config.moveOptions == 'copy') {
+                    console.log(`Moving file (copy) ${mvFile.old} -> ${mvFile.new}`)
+
                     if (this.config.mode == 'normal') {
                         fs.copyFileSync(mvFile.old, mvFile.new);
                     }
 
                     taskList += `cp "${mvFile.old}" "${mvFile.new}"\n`;
                 } else if (this.config.moveOptions == 'copyAndDeleteOld') {
+                    console.log(`Moving file (copy and delete old) ${mvFile.old} -> ${mvFile.new}`)
+
                     if (this.config.mode == 'normal') {
                         fs.copyFileSync(mvFile.old, mvFile.new);
                         fs.unlinkSync(mvFile.old);
@@ -91,6 +99,8 @@ class Executor {
 
                     taskList += `cpRm "${mvFile.old}" "${mvFile.new}"\n`;
                 } else if (this.config.moveOptions == 'ignore') {
+                    console.log(`Moving file (ignore) ${mvFile.old} -> ${mvFile.new}`)
+
                     taskList += `ignore "${mvFile.old}" "${mvFile.new}"\n`;
                 }
             } catch (err) {
