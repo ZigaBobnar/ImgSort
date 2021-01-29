@@ -30,4 +30,12 @@ After the initial import of files is done, the import data is stored under `impo
 
 Then the tool takes the import file and processes it into list of mkdir and move "commands". This list is saved as `sort-task-list-___...___.json`.
 
-When the commands are executing the log of operations done is being stored into variable and at the end saved into `sort-tasks-done-___...___.txt`. In case of major problems with sorting this file could help to revert the operations if needed (as of now no such revert mechanism is implemented).
+When the commands are executing the log of operations done is being stored into variable and at the end saved into `sort-tasks-done-___...___.txt`. In case of major problems with sorting this file could help to revert the operations if needed.
+
+## Reverting operations
+Run `npm run revert testing/output/sort-tasks-done-___...___.txt` to revert the operations inside specified tasklist.
+This process will not revert the creation of directories (there could still be residual data in them). It will however try to revert the operations of copying/moving files.
+
+If files were copied in the first place it will try to copy back to original location (in case file was removed there) and then remove the files from output directory (if the new and old paths are not the same).
+
+If files were copied and then old ones removed or just moved, they will be moved with the same operation back to the old path.

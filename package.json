@@ -13,8 +13,10 @@
     "ts-node-dev": "^1.1.1"
   },
   "scripts": {
-    "sort": "npm run build && npm run index",
-    "index": "node dist/index.js",
+    "sort": "npm run build && npm run exec-index",
+    "revert": "npm run build && npm run exec-revert",
+    "exec-index": "node dist/index.js",
+    "exec-revert": "node dist/revert.js",
     "build": "tsc",
     "dev": "ts-node-dev --respawn index.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
