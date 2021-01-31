@@ -25,7 +25,8 @@
     "exec-revert": "node dist/revert.js",
     "build": "tsc",
     "dev": "ts-node-dev --respawn index.ts",
-    "test": "mocha -r ts-node/register tests/**/*.tests.ts"
+    "test": "mocha -r ts-node/register tests/**/*.test.ts",
+    "coverage": "nyc -r lcov -e .ts -x \".test.ts\" npm run test"
   },
   "author": "ZigaBobnar",
   "license": "MIT"

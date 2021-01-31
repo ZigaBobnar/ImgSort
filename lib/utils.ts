@@ -1,7 +1,11 @@
 import { FileDate, SortConfig } from './sort';
 
-const getTimeForFileName = (): string => {
-    return new Date().toISOString().replace(/:/g, '.').slice(0, 19);
+const getTimeForFileName = (date: Date | null = null): string => {
+    if (!date) {
+        date = new Date();
+    }
+
+    return date.toISOString().replace(/:/g, '.').slice(0, 19);
 };
 
 const formatOutputFolderName = (

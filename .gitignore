@@ -3,3 +3,5 @@ dist/
 config.ts
 /testing/ingest/*
 /testing/output/*
+/coverage
+/.nyc_output
