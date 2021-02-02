@@ -1,12 +1,7 @@
 import { expect } from 'chai';
-import { DefaultConfig, FileDate, SortConfig } from '../lib/sort';
+import { DefaultConfig, SortConfig } from '../lib/sort/sortConfig';
+import { FileDate } from '../lib/sort/fileInfo';
 import { formatOutputFolderName, getTimeForFileName } from '../lib/utils';
-
-const testFileDate: FileDate = {
-    day: '31',
-    month: '12',
-    year: '2021',
-};
 
 describe('utils', () => {
     describe('getTimeForFileName', () => {
@@ -32,6 +27,12 @@ describe('utils', () => {
     });
 
     describe('formatOutputFolderName', () => {
+        const testFileDate: FileDate = {
+            day: '31',
+            month: '12',
+            year: '2021',
+        };
+
         it('Format the output folder name (default config)', () => {
             const testConfig: SortConfig = {
                 ...DefaultConfig,

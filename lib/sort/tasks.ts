@@ -1,4 +1,4 @@
-import { FileInfo } from '.';
+import { FileInfo } from './fileInfo';
 
 export interface FileMoveTask {
     inPath: string;

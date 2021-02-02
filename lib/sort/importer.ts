@@ -1,22 +1,28 @@
 import fs from 'fs';
-import { FileDate, FileInfo, FileMoveTask, OutputTasks, SortConfig } from '.';
+import { SortConfig } from './sortConfig';
+import { FileDate, FileInfo } from './fileInfo';
+import { FileMoveTask, OutputTasks } from './tasks';
 import { ExifImage } from 'exif';
 import { FilePath } from './fileInfo';
 import { formatOutputFolderName, getTimeForFileName } from '../utils';
+import { ImporterInterface } from './interfaces';
 
-class Importer {
+class Importer implements ImporterInterface {
     constructor(private config: SortConfig) {}
 
     async import(): Promise<string> {
-        const files = this.findFiles(this.config.ingestPath);
-        console.log(`Found ${files.length} files`);
-        const fileInfos = await this.getFileInfos(files);
-        const outputTasks = this.prepareOutputTasks(fileInfos);
+        const files = await this.findFiles(this.config.ingestPath);
 
-        return this.writeImportData(outputTasks);
+        console.log(`Found ${files.length} files`);
+
+        const fileInfos = await this.getFileInfos(files);
+        const outputTasks = await this.prepareOutputTasks(fileInfos);
+        const outputTasksFile = await this.writeImportData(outputTasks);
+
+        return outputTasksFile;
     }
 
-    private findFiles(path: string): FilePath[] {
+    async findFiles(path: string): Promise<FilePath[]> {
         console.log(`Searching in ${path}`);
 
         const files = fs.readdirSync(path, {
@@ -29,7 +35,7 @@ class Importer {
             if (file.isDirectory()) {
                 outFiles = [
                     ...outFiles,
-                    ...this.findFiles(path + '/' + file.name),
+                    ...(await this.findFiles(path + '/' + file.name)),
                 ];
             } else if (file.isFile()) {
                 outFiles.push({ path, name: file.name });
@@ -41,7 +47,7 @@ class Importer {
         return outFiles;
     }
 
-    private async getFileInfos(files: FilePath[]): Promise<FileInfo[]> {
+    async getFileInfos(files: FilePath[]): Promise<FileInfo[]> {
         const fileInfos: FileInfo[] = [];
         let i = 1;
         const step = Math.max(4, Math.ceil(files.length / 20));
@@ -50,9 +56,9 @@ class Importer {
         for (const file of files) {
             if (i > target) {
                 target += step;
-                console.log(`Processed ${i}/${files.length} files`)
+                console.log(`Processed ${i}/${files.length} files`);
             }
-            
+
             fileInfos.push(await this.getFileInfo(file));
 
             i++;
@@ -61,7 +67,7 @@ class Importer {
         return fileInfos;
     }
 
-    private async getFileInfo(file: FilePath): Promise<FileInfo> {
+    async getFileInfo(file: FilePath): Promise<FileInfo> {
         return new Promise<FileInfo>((resolve, reject) => {
             new ExifImage(
                 { image: `${file.path}/${file.name}` },
@@ -129,7 +135,7 @@ class Importer {
         });
     }
 
-    private prepareOutputTasks(files: FileInfo[]): OutputTasks {
+    async prepareOutputTasks(files: FileInfo[]): Promise<OutputTasks> {
         const requiredDirectories: string[] = [];
         const moveTasks: FileMoveTask[] = [];
         const problematicFiles: FileInfo[] = [];
@@ -142,7 +148,9 @@ class Importer {
                 file.date.month &&
                 file.date.day
             ) {
-                const outputDir = `${this.config.outputPath}/${formatOutputFolderName(this.config, file.date)}`;
+                const outputDir = `${
+                    this.config.outputPath
+                }/${formatOutputFolderName(this.config, file.date)}`;
 
                 if (!requiredDirectories.includes(outputDir)) {
                     requiredDirectories.push(outputDir);
@@ -164,7 +172,7 @@ class Importer {
         };
     }
 
-    private writeImportData(outputTasks: OutputTasks): string {
+    async writeImportData(outputTasks: OutputTasks): Promise<string> {
         if (!fs.existsSync(`${this.config.outputPath}`)) {
             fs.mkdirSync(`${this.config.outputPath}`);
         }

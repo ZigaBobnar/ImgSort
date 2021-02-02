@@ -1,25 +1,26 @@
 import fs from 'fs';
-import { parse } from 'path';
+import { ReverterInterface } from './interfaces';
+import { MoveTask } from './revertTypes';
 
-class Reverter {
-    constructor(private taskListPath: string) {}
+class Reverter implements ReverterInterface {
+    constructor(public readonly taskListPath: string) {}
 
-    revert(): void {
+    async revert(): Promise<void> {
         if (!fs.existsSync(this.taskListPath)) {
             throw 'Task file list does not exist.';
         }
 
-        const oldMoveTasks = this.parseTaskFile();
-        this.revertOldTasks(oldMoveTasks);
+        const oldMoveTasks = await this.parseTaskFile();
+        await this.revertOldTasks(oldMoveTasks);
     }
 
-    private parseTaskFile(): MoveTask[] {
+    async parseTaskFile(): Promise<MoveTask[]> {
         const fileContents = fs.readFileSync(this.taskListPath).toString();
         const tasks = fileContents.split('\n');
 
         const moveTasks: MoveTask[] = [];
         for (const task of tasks) {
-            const parsedTask = this.extractTask(task);
+            const parsedTask = await this.extractTask(task);
             if (parsedTask) {
                 moveTasks.push(parsedTask);
             }
@@ -28,16 +29,16 @@ class Reverter {
         return moveTasks;
     }
 
-    private extractTask(task: string): MoveTask | null {
+    extractTask(task: string): Promise<MoveTask | null> {
         const splitTask = task.split('"');
 
         const operation = splitTask[0]?.trim();
         if (operation == 'mv' || operation == 'cp' || operation == 'cpRm') {
-            return {
+            return Promise.resolve({
                 moveType: operation,
                 old: splitTask[1],
                 new: splitTask[3],
-            };
+            });
         } else if (
             operation &&
             operation !== 'mkdir' &&
@@ -46,10 +47,10 @@ class Reverter {
             console.log(`Unknown task operation ${operation}`);
         }
 
-        return null;
+        return Promise.resolve(null);
     }
 
-    private revertOldTasks(oldMoveTasks: MoveTask[]) {
+    revertOldTasks(oldMoveTasks: MoveTask[]): Promise<void> {
         for (const task of oldMoveTasks) {
             try {
                 console.log(
@@ -81,13 +82,9 @@ class Reverter {
                 console.log(`Failed to revert ${task.old} - ${err}`);
             }
         }
+
+        return Promise.resolve();
     }
 }
-
-type MoveTask = {
-    moveType: 'mv' | 'cp' | 'cpRm';
-    old: string;
-    new: string;
-};
 
 export { Reverter };

@@ -1,4 +1,5 @@
-import { FileDate, SortConfig } from './sort';
+import { SortConfig } from './sort/sortConfig';
+import { FileDate } from './sort/fileInfo';
 
 const getTimeForFileName = (date: Date | null = null): string => {
     if (!date) {

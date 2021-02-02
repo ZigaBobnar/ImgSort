@@ -1,4 +1,4 @@
-import { Reverter } from './lib/sort';
+import { Reverter } from './lib/sort/reverter';
 
 const taskFile = process.argv[2];
 if (!taskFile) {
@@ -8,10 +8,13 @@ if (!taskFile) {
 }
 
 const reverter = new Reverter(taskFile);
-try {
-    reverter.revert();
-} catch (err) {
-    console.log(`Unable to revert - ${err}`);
+reverter
+    .revert()
+    .then(() => {
+        console.log('Done reverting.');
+    })
+    .catch((err) => {
+        console.log(`Unable to revert - ${err}`);
 
-    process.exit(-1);
-}
+        process.exit(-1);
+    });

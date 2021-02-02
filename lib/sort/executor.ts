@@ -1,14 +1,16 @@
 import fs from 'fs';
-import { ExecutorTasks, OutputTasks, SortConfig } from '.';
+import { SortConfig } from './sortConfig';
+import { ExecutorTasks, OutputTasks } from './tasks';
 import { getTimeForFileName } from '../utils';
+import { ExecutorInterface } from './interfaces';
 
-class Executor {
+class Executor implements ExecutorInterface {
     constructor(
-        private importDataFileName: string,
-        private config: SortConfig
+        public readonly importDataFileName: string,
+        public readonly config: SortConfig
     ) {}
 
-    execute(): string {
+    async execute(): Promise<string> {
         if (!fs.statSync(this.importDataFileName).isFile()) {
             throw `Import data file does not exist - ${this.importDataFileName}`;
         }
@@ -21,20 +23,20 @@ class Executor {
             throw `Error while reading the import data - ${err}`;
         }
 
-        const tasks = this.prepareTaskList(importData);
+        const tasks = await this.prepareTaskList(importData);
         this.saveTaskList(tasks);
 
         return this.runTasks(tasks);
     }
 
-    private prepareTaskList(tasks: OutputTasks): ExecutorTasks {
-        return {
+    prepareTaskList(tasks: OutputTasks): Promise<ExecutorTasks> {
+        return Promise.resolve({
             mkdir: tasks.requiredDirectories,
             mv: tasks.moveTasks.map((t) => ({ old: t.inPath, new: t.outPath })),
-        };
+        });
     }
 
-    private saveTaskList(tasks: ExecutorTasks) {
+    saveTaskList(tasks: ExecutorTasks): Promise<string> {
         try {
             const tasksListFileName = `${
                 this.config.outputPath
@@ -45,12 +47,14 @@ class Executor {
             );
 
             console.log(`Saved the tasks list as ${tasksListFileName}`);
+
+            return Promise.resolve(tasksListFileName);
         } catch (err) {
             throw `Error while saving the tasks list - ${err}`;
         }
     }
 
-    private runTasks(tasks: ExecutorTasks): string {
+    runTasks(tasks: ExecutorTasks): Promise<string> {
         const ranTasksFileName = `${
             this.config.outputPath
         }/sort-tasks-done-${getTimeForFileName()}.txt`;
@@ -58,7 +62,7 @@ class Executor {
         let taskList = '';
         try {
             for (const mkPath of tasks.mkdir) {
-                console.log(`Creating directory ${mkPath}`)
+                console.log(`Creating directory ${mkPath}`);
 
                 if (this.config.mode == 'normal') {
                     fs.mkdirSync(mkPath, { recursive: true });
@@ -74,7 +78,9 @@ class Executor {
         for (const mvFile of tasks.mv) {
             try {
                 if (this.config.moveOptions == 'move') {
-                    console.log(`Moving file (move) ${mvFile.old} -> ${mvFile.new}`)
+                    console.log(
+                        `Moving file (move) ${mvFile.old} -> ${mvFile.new}`
+                    );
 
                     if (this.config.mode == 'normal') {
                         fs.renameSync(mvFile.old, mvFile.new);
@@ -82,7 +88,9 @@ class Executor {
 
                     taskList += `mv "${mvFile.old}" "${mvFile.new}"\n`;
                 } else if (this.config.moveOptions == 'copy') {
-                    console.log(`Moving file (copy) ${mvFile.old} -> ${mvFile.new}`)
+                    console.log(
+                        `Moving file (copy) ${mvFile.old} -> ${mvFile.new}`
+                    );
 
                     if (this.config.mode == 'normal') {
                         fs.copyFileSync(mvFile.old, mvFile.new);
@@ -90,7 +98,9 @@ class Executor {
 
                     taskList += `cp "${mvFile.old}" "${mvFile.new}"\n`;
                 } else if (this.config.moveOptions == 'copyAndDeleteOld') {
-                    console.log(`Moving file (copy and delete old) ${mvFile.old} -> ${mvFile.new}`)
+                    console.log(
+                        `Moving file (copy and delete old) ${mvFile.old} -> ${mvFile.new}`
+                    );
 
                     if (this.config.mode == 'normal') {
                         fs.copyFileSync(mvFile.old, mvFile.new);
@@ -99,7 +109,9 @@ class Executor {
 
                     taskList += `cpRm "${mvFile.old}" "${mvFile.new}"\n`;
                 } else if (this.config.moveOptions == 'ignore') {
-                    console.log(`Moving file (ignore) ${mvFile.old} -> ${mvFile.new}`)
+                    console.log(
+                        `Moving file (ignore) ${mvFile.old} -> ${mvFile.new}`
+                    );
 
                     taskList += `ignore "${mvFile.old}" "${mvFile.new}"\n`;
                 }
@@ -112,7 +124,7 @@ class Executor {
         fs.appendFileSync(ranTasksFileName, taskList);
         taskList = '';
 
-        return ranTasksFileName;
+        return Promise.resolve(ranTasksFileName);
     }
 }
 
