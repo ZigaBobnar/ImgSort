@@ -2,7 +2,7 @@ import { FileDate, SortConfig } from './sort';
 
 const getTimeForFileName = (date: Date | null = null): string => {
     if (!date) {
-        date = new Date();
+        date = new Date(Date.now());
     }
 
     return date.toISOString().replace(/:/g, '.').slice(0, 19);
