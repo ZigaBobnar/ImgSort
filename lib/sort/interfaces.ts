@@ -5,6 +5,8 @@ import { SortConfig } from './sortConfig';
 import { MoveTask } from './revertTypes';
 
 export interface ImporterInterface {
+    readonly config: SortConfig;
+
     /**
      * Performs the import operations to find all files and create list of content.
      *

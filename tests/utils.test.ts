@@ -3,9 +3,9 @@ import { DefaultConfig, SortConfig } from '../lib/sort/sortConfig';
 import { FileDate } from '../lib/sort/fileInfo';
 import { formatOutputFolderName, getTimeForFileName } from '../lib/utils';
 
-describe('utils', () => {
-    describe('getTimeForFileName', () => {
-        it('Get correct time for file name from input time', () => {
+describe('utils', function () {
+    describe('getTimeForFileName', function () {
+        it('Get correct time for file name from input time', function () {
             const inputDate = new Date('2021-12-31T12:34:56.000Z');
 
             const result = getTimeForFileName(inputDate);
@@ -13,7 +13,7 @@ describe('utils', () => {
             expect(result).equal('2021-12-31T12.34.56');
         });
 
-        it('Get correct time for file name from "current" time', () => {
+        it('Get correct time for file name from "current" time', function () {
             const fakeDate = new Date('2021-11-26T21:43:56.000Z');
             const originalDateNow = Date.now;
             Date.now = () => fakeDate.getTime();
@@ -26,14 +26,14 @@ describe('utils', () => {
         });
     });
 
-    describe('formatOutputFolderName', () => {
+    describe('formatOutputFolderName', function () {
         const testFileDate: FileDate = {
             day: '31',
             month: '12',
             year: '2021',
         };
 
-        it('Format the output folder name (default config)', () => {
+        it('Format the output folder name (default config)', function () {
             const testConfig: SortConfig = {
                 ...DefaultConfig,
             };
@@ -43,7 +43,7 @@ describe('utils', () => {
             expect(result).equal('2021/12-31');
         });
 
-        it('Format the output folder name (split year and month-day - same as default)', () => {
+        it('Format the output folder name (split year and month-day - same as default)', function () {
             const testConfig: SortConfig = {
                 ...DefaultConfig,
                 outputFolderStructure: 'YYYY/MM-DD',
@@ -54,7 +54,7 @@ describe('utils', () => {
             expect(result).equal('2021/12-31');
         });
 
-        it('Format the output folder name (split year and month and then day)', () => {
+        it('Format the output folder name (split year and month and then day)', function () {
             const testConfig: SortConfig = {
                 ...DefaultConfig,
                 outputFolderStructure: 'YYYY/MM/DD',
@@ -65,7 +65,7 @@ describe('utils', () => {
             expect(result).equal('2021/12/31');
         });
 
-        it('Format the output folder name (split year and year-month-day)', () => {
+        it('Format the output folder name (split year and year-month-day)', function () {
             const testConfig: SortConfig = {
                 ...DefaultConfig,
                 outputFolderStructure: 'YYYY/YYYY-MM-DD',
@@ -76,7 +76,7 @@ describe('utils', () => {
             expect(result).equal('2021/2021-12-31');
         });
 
-        it('Format the output folder name (year-month-day)', () => {
+        it('Format the output folder name (year-month-day)', function () {
             const testConfig: SortConfig = {
                 ...DefaultConfig,
                 outputFolderStructure: 'YYYY-MM-DD',
@@ -87,7 +87,7 @@ describe('utils', () => {
             expect(result).equal('2021-12-31');
         });
 
-        it('Format the output folder name (null date => null result)', () => {
+        it('Format the output folder name (null date => null result)', function () {
             const testConfig: SortConfig = {
                 ...DefaultConfig,
                 outputFolderStructure: 'YYYY-MM-DD',

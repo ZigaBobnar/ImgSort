@@ -8,7 +8,7 @@ import { formatOutputFolderName, getTimeForFileName } from '../utils';
 import { ImporterInterface } from './interfaces';
 
 class Importer implements ImporterInterface {
-    constructor(private config: SortConfig) {}
+    constructor(public readonly config: SortConfig) {}
 
     async import(): Promise<string> {
         const files = await this.findFiles(this.config.ingestPath);
@@ -33,10 +33,8 @@ class Importer implements ImporterInterface {
 
         for (const file of files) {
             if (file.isDirectory()) {
-                outFiles = [
-                    ...outFiles,
-                    ...(await this.findFiles(path + '/' + file.name)),
-                ];
+                const subFiles = await this.findFiles(path + '/' + file.name);
+                outFiles = [...outFiles, ...subFiles];
             } else if (file.isFile()) {
                 outFiles.push({ path, name: file.name });
             } else {
