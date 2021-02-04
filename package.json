@@ -22,12 +22,12 @@
     "typescript": "^4.1.3"
   },
   "scripts": {
-    "sort": "npm run build && npm run exec-index",
+    "sort": "npm run build && npm run exec-sort",
     "revert": "npm run build && npm run exec-revert",
-    "exec-index": "node dist/index.js",
-    "exec-revert": "node dist/revert.js",
+    "exec-sort": "node dist/src/sort.js",
+    "exec-revert": "node dist/src/revert.js",
     "build": "tsc",
-    "dev": "ts-node-dev --respawn index.ts",
+    "dev": "ts-node-dev --respawn src/sort.ts",
     "test": "mocha -r ts-node/register tests/**/*.test.ts",
     "dev-test": "mocha -r ts-node/register tests/**/*.test.ts --watch --watch-files lib/**/*.ts,tests/**/*.ts",
     "coverage": "nyc npm run test"

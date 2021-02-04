@@ -1,12 +1,16 @@
 import { expect } from 'chai';
-import Sinon, { mock } from 'sinon';
+import Sinon, { SinonStub } from 'sinon';
 import { Importer } from '../../lib/sort/importer';
 import { DefaultConfig } from '../../lib/sort/sortConfig';
-import fs, { read } from 'fs';
+import fs from 'fs';
+import * as utils from '../../lib/utils';
+import { OutputTasks } from '../../lib/sort/tasks';
 
 describe('Importer', function () {
+    let consoleLogStub: SinonStub;
+
     beforeEach(function () {
-        Sinon.stub(console, 'log');
+        consoleLogStub = Sinon.stub(console, 'log');
     });
 
     afterEach(function () {
@@ -53,6 +57,11 @@ describe('Importer', function () {
                     name: 'testFile.txt',
                     isDirectory: () => false,
                     isFile: () => true,
+                } as any,
+                {
+                    name: 'ignoreNonFileNonDir',
+                    isDirectory: () => false,
+                    isFile: () => false,
                 } as any,
                 {
                     name: 'testImage.jpg',
@@ -305,6 +314,335 @@ describe('Importer', function () {
                 },
             ]);
             expect(readdirStub.callCount).to.be.eq(4);
+        });
+    });
+
+    describe('getFileInfos', function () {
+        it('Returns empty on empty input', async function () {
+            const importer = new Importer(DefaultConfig);
+            const getFileInfoStub = Sinon.stub(
+                Importer.prototype,
+                'getFileInfo'
+            ).resolves({} as any);
+
+            const fileInfos = await importer.getFileInfos([]);
+
+            expect(fileInfos).to.be.empty;
+            expect(getFileInfoStub.notCalled).to.be.true;
+        });
+
+        it('Calls getFileInfo for each file', async function () {
+            const importer = new Importer(DefaultConfig);
+            const getFileInfoStub = Sinon.stub(
+                Importer.prototype,
+                'getFileInfo'
+            ).resolves({} as any);
+
+            const fileInfos = await importer.getFileInfos([
+                {
+                    name: 'testFile.txt',
+                    path: '/root',
+                },
+                {
+                    name: 'testFile1.txt',
+                    path: '/root/path1',
+                },
+                {
+                    name: 'testFile2.txt',
+                    path: '/root/path1/path2',
+                },
+                {
+                    name: 'testFile3.txt',
+                    path: '/root/path1/path2/path3',
+                },
+                {
+                    name: 'testImage.jpg',
+                    path: '/root/path1/path2/path3',
+                },
+            ]);
+
+            expect(fileInfos.length).to.be.eq(5);
+            expect(getFileInfoStub.callCount).to.be.eq(5);
+        });
+    });
+
+    describe('getFileInfo', function () {
+        it('Missing file returns error result with null date', async function () {
+            const importer = new Importer(DefaultConfig);
+            const readFileStub = Sinon.stub(fs, 'readFile');
+            readFileStub.yields(null, Buffer.from(''));
+            const statSyncStub = Sinon.stub(fs, 'statSync').returns(
+                ({} as any) as fs.Stats
+            );
+
+            const fileInfo = await importer.getFileInfo({
+                name: 'testFile3.txt',
+                path: '/root/path1/path2/path3',
+            });
+
+            expect(fileInfo).to.deep.eq({
+                name: 'testFile3.txt',
+                path: '/root/path1/path2/path3',
+                date: null,
+                error:
+                    'The given image is not a JPEG and thus unsupported right now.',
+            });
+            expect(readFileStub.calledOnce).to.be.true;
+            expect(statSyncStub.calledOnce).to.be.true;
+        });
+
+        it('Non Exif parseable file returns error result with file modified date', async function () {
+            const importer = new Importer(DefaultConfig);
+            const fakeDate = new Date('2021-11-06T21:43:56.000Z');
+            const readFileStub = Sinon.stub(fs, 'readFile');
+            readFileStub.yields(null, Buffer.from(''));
+            const statSyncStub = Sinon.stub(fs, 'statSync').returns(({
+                mtime: fakeDate,
+            } as any) as fs.Stats);
+
+            const fileInfo = await importer.getFileInfo({
+                name: 'testFile3.txt',
+                path: '/root/path1/path2/path3',
+            });
+
+            expect(fileInfo).to.deep.eq({
+                name: 'testFile3.txt',
+                path: '/root/path1/path2/path3',
+                date: {
+                    year: '2021',
+                    month: '11',
+                    day: '06',
+                },
+                error:
+                    'The given image is not a JPEG and thus unsupported right now.',
+            });
+            expect(readFileStub.calledOnce).to.be.true;
+            expect(statSyncStub.calledOnce).to.be.true;
+        });
+
+        it('Exif parseable file returns correct date', async function () {
+            const importer = new Importer(DefaultConfig);
+            const readFileStub = Sinon.stub(fs, 'readFile');
+            readFileStub.yields(
+                null,
+                fs.readFileSync('./tests/testdata/sampleImg.jpg')
+            );
+
+            const fileInfo = await importer.getFileInfo({
+                name: 'testFile3.txt',
+                path: '/root/path1/path2/path3',
+            });
+
+            expect(fileInfo).to.deep.eq({
+                name: 'testFile3.txt',
+                path: '/root/path1/path2/path3',
+                date: {
+                    year: '2001',
+                    month: '04',
+                    day: '06',
+                },
+            });
+            expect(readFileStub.calledOnce).to.be.true;
+        });
+
+        it('Exif parseable file without date returns null date', async function () {
+            const importer = new Importer(DefaultConfig);
+            const readFileStub = Sinon.stub(fs, 'readFile');
+            readFileStub.yields(
+                null,
+                fs.readFileSync(
+                    './tests/testdata/sampleImg_without_exif_date.jpg'
+                )
+            );
+
+            const fileInfo = await importer.getFileInfo({
+                name: 'testFile3.txt',
+                path: '/root/path1/path2/path3',
+            });
+
+            expect(fileInfo).to.deep.eq({
+                name: 'testFile3.txt',
+                path: '/root/path1/path2/path3',
+                date: null,
+            });
+            expect(readFileStub.calledOnce).to.be.true;
+        });
+    });
+
+    describe('prepareOutputTasks', function () {
+        it('Empty files array produces empty taskfile', async function () {
+            const importer = new Importer(DefaultConfig);
+
+            const outputTasks = await importer.prepareOutputTasks([]);
+
+            expect(outputTasks).to.deep.eq({
+                requiredDirectories: [],
+                moveTasks: [],
+                problematicFiles: [],
+            });
+        });
+
+        it('Create correct tasks for complex tree', async function () {
+            const importer = new Importer(DefaultConfig);
+
+            const outputTasks = await importer.prepareOutputTasks([
+                {
+                    name: 'testFile.jpg',
+                    path: '/root',
+                    date: {
+                        year: '2001',
+                        month: '04',
+                        day: '06',
+                    },
+                },
+                {
+                    name: 'testFile1.jpg',
+                    path: '/root/path1',
+                    date: {
+                        year: '2021',
+                        month: '12',
+                        day: '31',
+                    },
+                },
+                {
+                    name: 'testFile2.jpg',
+                    path: '/root/path1/path2',
+                    date: {
+                        year: '2021',
+                        month: '12',
+                        day: '31',
+                    },
+                },
+                {
+                    name: 'testFile3.txt',
+                    path: '/root/path1/path2/path3',
+                    date: {
+                        year: '2001',
+                        month: '04',
+                        day: '06',
+                    },
+                    error:
+                        'The given image is not a JPEG and thus unsupported right now.',
+                },
+                {
+                    name: 'testImage.jpg',
+                    path: '/root/path1/path2/path3',
+                    date: null,
+                    error: 'Cannot read file?',
+                },
+            ]);
+
+            expect(outputTasks).to.deep.eq({
+                requiredDirectories: [
+                    './testing/output/2001/04-06',
+                    './testing/output/2021/12-31',
+                ],
+                moveTasks: [
+                    {
+                        inPath: '/root/testFile.jpg',
+                        outPath: './testing/output/2001/04-06/testFile.jpg',
+                    },
+                    {
+                        inPath: '/root/path1/testFile1.jpg',
+                        outPath: './testing/output/2021/12-31/testFile1.jpg',
+                    },
+                    {
+                        inPath: '/root/path1/path2/testFile2.jpg',
+                        outPath: './testing/output/2021/12-31/testFile2.jpg',
+                    },
+                ],
+                problematicFiles: [
+                    {
+                        name: 'testFile3.txt',
+                        path: '/root/path1/path2/path3',
+                        date: {
+                            day: '06',
+                            month: '04',
+                            year: '2001',
+                        },
+                        error:
+                            'The given image is not a JPEG and thus unsupported right now.',
+                    },
+                    {
+                        name: 'testImage.jpg',
+                        path: '/root/path1/path2/path3',
+                        date: null,
+                        error: 'Cannot read file?',
+                    },
+                ],
+            });
+        });
+    });
+
+    describe('writeImportData', function () {
+        it('Empty tasks make empty import data file', async function () {
+            const importer = new Importer(DefaultConfig);
+
+            const existsSyncStub = Sinon.stub(fs, 'existsSync').returns(true);
+            const getTimeForFileNameStub = Sinon.stub(
+                utils,
+                'getTimeForFileName'
+            ).returns('0000-0000');
+            const writeFileSyncStub = Sinon.stub(fs, 'writeFileSync');
+
+            const tasks: OutputTasks = {
+                requiredDirectories: [],
+                moveTasks: [],
+                problematicFiles: [],
+            };
+
+            const importDataFile = await importer.writeImportData(tasks);
+
+            expect(importDataFile).to.eq(
+                './testing/output/import-0000-0000.json'
+            );
+            expect(existsSyncStub.calledOnce).to.be.true;
+            expect(getTimeForFileNameStub.calledOnce).to.be.true;
+            expect(writeFileSyncStub.calledOnce).to.be.true;
+            expect(writeFileSyncStub.firstCall.args).to.be.deep.eq([
+                './testing/output/import-0000-0000.json',
+                `{
+    "requiredDirectories": [],
+    "moveTasks": [],
+    "problematicFiles": []
+}`,
+            ]);
+        });
+
+        it('Creates output dir if it does not exist', async function () {
+            const importer = new Importer(DefaultConfig);
+
+            const existsSyncStub = Sinon.stub(fs, 'existsSync').returns(false);
+            const mkdirSyncStub = Sinon.stub(fs, 'mkdirSync');
+            const getTimeForFileNameStub = Sinon.stub(
+                utils,
+                'getTimeForFileName'
+            ).returns('0000-0000');
+            const writeFileSyncStub = Sinon.stub(fs, 'writeFileSync');
+
+            const tasks: OutputTasks = {
+                requiredDirectories: [],
+                moveTasks: [],
+                problematicFiles: [],
+            };
+
+            const importDataFile = await importer.writeImportData(tasks);
+
+            expect(importDataFile).to.eq(
+                './testing/output/import-0000-0000.json'
+            );
+            expect(existsSyncStub.calledOnce).to.be.true;
+            expect(mkdirSyncStub.calledOnce).to.be.true;
+            expect(getTimeForFileNameStub.calledOnce).to.be.true;
+            expect(writeFileSyncStub.calledOnce).to.be.true;
+            expect(writeFileSyncStub.firstCall.args).to.be.deep.eq([
+                './testing/output/import-0000-0000.json',
+                `{
+    "requiredDirectories": [],
+    "moveTasks": [],
+    "problematicFiles": []
+}`,
+            ]);
         });
     });
 });

@@ -3,11 +3,11 @@
 This utility takes all image files from a folder and reorganizes them into date based folder tree structure.
 
 ## Usage
-- Copy `config-sample.ts` file into `config.ts` and update ingest and output paths
+- Copy `src/config-sample.ts` file into `src/config.ts` and update ingest and output paths
 - Run tool using `npm run sort`
 
 ## Customization
-By modifying `config.ts` file you can change the way this tool moves files, whether it should proceed executing commands and how the output path should be structured.
+By modifying `src/config.ts` file you can change the way this tool moves files, whether it should proceed executing commands and how the output path should be structured.
 
 For most up to date information, please take a look at `SortConfig` interface in [lib/sort/sortConfig.ts](https://github.com/ZigaBobnar/ImgSort/blob/main/lib/sort/sortConfig.ts) file which contains the actual definitions of all available options.
 

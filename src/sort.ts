@@ -1,6 +1,6 @@
-import { Importer } from './lib/sort/importer';
+import { Importer } from '../lib/sort/importer';
 import sortConfig from './config';
-import { Executor } from './lib/sort/executor';
+import { Executor } from '../lib/sort/executor';
 
 const importer = new Importer(sortConfig);
 

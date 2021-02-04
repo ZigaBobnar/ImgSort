@@ -1,4 +1,4 @@
-import { Reverter } from './lib/sort/reverter';
+import { Reverter } from '../lib/sort/reverter';
 
 const taskFile = process.argv[2];
 if (!taskFile) {

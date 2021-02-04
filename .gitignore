@@ -1,6 +1,6 @@
 node_modules/
 dist/
-config.ts
+src/config.ts
 /testing/ingest/*
 /testing/output/*
 /coverage
