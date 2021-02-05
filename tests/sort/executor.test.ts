@@ -3,6 +3,8 @@ import Sinon, { SinonStub } from 'sinon';
 import { Executor } from '../../lib/sort/executor';
 import { DefaultConfig } from '../../lib/sort/sortConfig';
 import fs from 'fs';
+import { ExecutorTasks, OutputTasks } from '../../lib/sort/tasks';
+import * as utils from '../../lib/utils';
 
 describe('Executor', function () {
     let consoleLogStub: SinonStub;
@@ -87,8 +89,7 @@ describe('Executor', function () {
             let hasThrown = false;
             try {
                 await executor.execute();
-            }
-            catch(err) {
+            } catch (err) {
                 hasThrown = true;
             }
 
@@ -98,6 +99,270 @@ describe('Executor', function () {
             expect(prepareTaskListStub.notCalled).to.be.true;
             expect(saveTaskListStub.notCalled).to.be.true;
             expect(runTasksStub.notCalled).to.be.true;
+        });
+    });
+
+    describe('prepareTaskList', function () {
+        it('Returns empty task list on empty tasks input', async function () {
+            const tasks: OutputTasks = {
+                requiredDirectories: [],
+                moveTasks: [],
+                problematicFiles: [],
+            };
+
+            const executor = new Executor('', DefaultConfig);
+
+            const result = await executor.prepareTaskList(tasks);
+
+            expect(result).to.deep.equal({
+                mkdir: [],
+                mv: [],
+            });
+        });
+
+        it('Create directories', async function () {
+            const tasks: OutputTasks = {
+                requiredDirectories: [
+                    './output/2021/12-31',
+                    './output/2021/11-30',
+                    './output/2021/10-01',
+                ],
+                moveTasks: [],
+                problematicFiles: [],
+            };
+
+            const executor = new Executor('', DefaultConfig);
+
+            const result = await executor.prepareTaskList(tasks);
+
+            expect(result).to.deep.equal({
+                mkdir: [
+                    './output/2021/12-31',
+                    './output/2021/11-30',
+                    './output/2021/10-01',
+                ],
+                mv: [],
+            });
+        });
+
+        it('Move files', async function () {
+            const tasks: OutputTasks = {
+                requiredDirectories: [],
+                moveTasks: [
+                    {
+                        inPath: './ingest/dir1/img1.jpg',
+                        outPath: './output/2021/12-31/img1.jpg',
+                    },
+                    {
+                        inPath: './ingest/dir2/dir3/img2.jpg',
+                        outPath: './output/2021/11-30/img2.jpg',
+                    },
+                    {
+                        inPath: './ingest/dir6/dir5/dir4/img3.jpg',
+                        outPath: './output/2021/10-01/img3.jpg',
+                    },
+                ],
+                problematicFiles: [],
+            };
+
+            const executor = new Executor('', DefaultConfig);
+
+            const result = await executor.prepareTaskList(tasks);
+
+            expect(result).to.deep.equal({
+                mkdir: [],
+                mv: [
+                    {
+                        old: './ingest/dir1/img1.jpg',
+                        new: './output/2021/12-31/img1.jpg',
+                    },
+                    {
+                        old: './ingest/dir2/dir3/img2.jpg',
+                        new: './output/2021/11-30/img2.jpg',
+                    },
+                    {
+                        old: './ingest/dir6/dir5/dir4/img3.jpg',
+                        new: './output/2021/10-01/img3.jpg',
+                    },
+                ],
+            });
+        });
+
+        it('Ignore problematic files', async function () {
+            const tasks: OutputTasks = {
+                requiredDirectories: [],
+                moveTasks: [],
+                problematicFiles: [
+                    {
+                        name: 'img1.txt',
+                        path: './ingest/dir1',
+                        date: {
+                            year: '2021',
+                            month: '12',
+                            day: '31',
+                        },
+                        error: 'Cannot process file',
+                    },
+                    {
+                        name: 'img2.txt',
+                        path: './ingest/dir2/dir3',
+                        date: {
+                            year: '2021',
+                            month: '11',
+                            day: '30',
+                        },
+                        error: 'Cannot process file',
+                    },
+                    {
+                        name: 'img3.txt',
+                        path: './ingest/dir6/dir5/dir4',
+                        date: {
+                            year: '2021',
+                            month: '12',
+                            day: '31',
+                        },
+                    },
+                ],
+            };
+
+            const executor = new Executor('', DefaultConfig);
+
+            const result = await executor.prepareTaskList(tasks);
+
+            expect(result).to.deep.equal({
+                mkdir: [],
+                mv: [],
+            });
+        });
+    });
+
+    describe('saveTaskList', function () {
+        it('Saves empty task list', async function () {
+            const writeFileSyncStub = Sinon.stub(fs, 'writeFileSync');
+            const getTimeForFileNameStub = Sinon.stub(
+                utils,
+                'getTimeForFileName'
+            ).returns('____');
+
+            const tasks: ExecutorTasks = {
+                mkdir: [],
+                mv: [],
+            };
+
+            const executor = new Executor('', DefaultConfig);
+
+            const result = await executor.saveTaskList(tasks);
+
+            expect(result).to.eq('./testing/output/sort-task-list-____.json');
+            expect(getTimeForFileNameStub.calledOnce).to.be.true;
+            expect(writeFileSyncStub.args[0]).to.deep.eq([
+                './testing/output/sort-task-list-____.json',
+                `{
+    "mkdir": [],
+    "mv": []
+}`,
+            ]);
+            expect(writeFileSyncStub.calledOnce).to.be.true;
+        });
+
+        it('Saves the same tasks as input, with human readable formatting', async function () {
+            const writeFileSyncStub = Sinon.stub(fs, 'writeFileSync');
+            const getTimeForFileNameStub = Sinon.stub(
+                utils,
+                'getTimeForFileName'
+            ).returns('____');
+
+            const tasks: ExecutorTasks = {
+                mkdir: [
+                    './output/2021/12-31',
+                    './output/2021/11-30',
+                    './output/2021/10-01',
+                ],
+                mv: [
+                    {
+                        old: './ingest/dir1/img1.jpg',
+                        new: './output/2021/12-31/img1.jpg',
+                    },
+                    {
+                        old: './ingest/dir2/dir3/img2.jpg',
+                        new: './output/2021/11-30/img2.jpg',
+                    },
+                    {
+                        old: './ingest/dir6/dir5/dir4/img3.jpg',
+                        new: './output/2021/10-01/img3.jpg',
+                    },
+                ],
+            };
+
+            const executor = new Executor('', DefaultConfig);
+
+            const result = await executor.saveTaskList(tasks);
+
+            expect(result).to.eq('./testing/output/sort-task-list-____.json');
+            expect(getTimeForFileNameStub.calledOnce).to.be.true;
+            expect(writeFileSyncStub.args[0]).to.deep.eq([
+                './testing/output/sort-task-list-____.json',
+                `{
+    "mkdir": [
+        "./output/2021/12-31",
+        "./output/2021/11-30",
+        "./output/2021/10-01"
+    ],
+    "mv": [
+        {
+            "old": "./ingest/dir1/img1.jpg",
+            "new": "./output/2021/12-31/img1.jpg"
+        },
+        {
+            "old": "./ingest/dir2/dir3/img2.jpg",
+            "new": "./output/2021/11-30/img2.jpg"
+        },
+        {
+            "old": "./ingest/dir6/dir5/dir4/img3.jpg",
+            "new": "./output/2021/10-01/img3.jpg"
+        }
+    ]
+}`,
+            ]);
+            expect(writeFileSyncStub.calledOnce).to.be.true;
+        });
+    });
+
+    describe('runTasks', function () {
+        it('Does nothing, still saves log for empty task list', async function () {
+            const getTimeForFileNameStub = Sinon.stub(
+                utils,
+                'getTimeForFileName'
+            ).returns('____');
+            const mkdirSyncStub = Sinon.stub(fs, 'mkdirSync');
+            let appendFileContents = '';
+            const appendFileSyncStub = Sinon.stub(
+                fs,
+                'appendFileSync'
+            ).callsFake((file, data) => {
+                appendFileContents += data + '\n';
+            });
+            const renameSyncStub = Sinon.stub(fs, 'renameSync');
+            const copyFileSyncStub = Sinon.stub(fs, 'copyFileSync');
+            const unlinkSyncStub = Sinon.stub(fs, 'unlinkSync');
+
+            const tasks: ExecutorTasks = {
+                mkdir: [],
+                mv: [],
+            };
+
+            const executor = new Executor('', DefaultConfig);
+
+            const result = await executor.runTasks(tasks);
+
+            expect(result).to.eq('./testing/output/sort-tasks-done-____.txt');
+            expect(appendFileContents).to.eq('\n\n');
+            expect(getTimeForFileNameStub.calledOnce).to.be.true;
+            expect(mkdirSyncStub.called).to.be.false;
+            expect(appendFileSyncStub.called).to.be.true;
+            expect(renameSyncStub.called).to.be.false;
+            expect(copyFileSyncStub.called).to.be.false;
+            expect(unlinkSyncStub.called).to.be.false;
         });
     });
 });
