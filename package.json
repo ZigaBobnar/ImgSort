@@ -29,8 +29,8 @@
     "exec-revert": "node dist/src/revert.js",
     "build": "tsc",
     "dev": "ts-node-dev --respawn src/sort.ts",
-    "test": "mocha -r ts-node/register tests/**/*.test.ts",
-    "dev-test": "mocha -r ts-node/register tests/**/*.test.ts --watch --watch-files lib/**/*.ts,tests/**/*.ts",
+    "test": "mocha -r ts-node/register --extension test.ts --recursive tests --forbit-only",
+    "dev-test": "mocha -r ts-node/register --extension test.ts --recursive tests --forbit-only --watch --watch-files lib/**/*.ts,tests/**/*.ts",
     "coverage": "nyc npm run test",
     "copy-sample-config": "ncp ./src/config-sample.ts ./src/config.ts"
   },
