@@ -1,5 +1,5 @@
 import { expect } from 'chai';
-import Sinon, { SinonStub } from 'sinon';
+import Sinon, { SinonStub, SinonStubStatic } from 'sinon';
 import { Importer } from '../../lib/sort/importer';
 import { DefaultConfig } from '../../lib/sort/sortConfig';
 import fs from 'fs';
@@ -20,6 +20,7 @@ describe('Importer', function () {
     describe('import', function () {
         it('Correct functions get called', async function () {
             const importer = new Importer(DefaultConfig);
+
             const findFilesStub = Sinon.stub(importer, 'findFiles').resolves(
                 []
             );
@@ -40,9 +41,16 @@ describe('Importer', function () {
     });
 
     describe('findFiles', function () {
+        let readdirStub: SinonStub;
+
+        beforeEach(function () {
+            readdirStub = Sinon.stub(fs, 'readdirSync').throws();
+        });
+
         it('Find in empty root dir', async function () {
+            readdirStub.returns([]);
+
             const importer = new Importer(DefaultConfig);
-            const readdirStub = Sinon.stub(fs, 'readdirSync').returns([]);
 
             const files = await importer.findFiles('');
 
@@ -51,8 +59,7 @@ describe('Importer', function () {
         });
 
         it('Find few files', async function () {
-            const importer = new Importer(DefaultConfig);
-            const readdirStub = Sinon.stub(fs, 'readdirSync').returns([
+            readdirStub.returns([
                 {
                     name: 'testFile.txt',
                     isDirectory: () => false,
@@ -69,6 +76,8 @@ describe('Importer', function () {
                     isFile: () => true,
                 } as any,
             ]);
+
+            const importer = new Importer(DefaultConfig);
 
             const files = await importer.findFiles('');
 
@@ -87,10 +96,7 @@ describe('Importer', function () {
         });
 
         it('Find few files, search subdirectory', async function () {
-            const importer = new Importer(DefaultConfig);
-            const readdirStub = Sinon.stub(fs, 'readdirSync').throws(
-                `Invalid path`
-            );
+            readdirStub.throws(`Invalid path`);
             readdirStub
                 .withArgs(
                     '/root/testPath',
@@ -133,6 +139,7 @@ describe('Importer', function () {
                     } as any,
                 ]);
 
+            const importer = new Importer(DefaultConfig);
             const files = await importer.findFiles('/root');
 
             expect(files.length).to.eq(5);
@@ -162,10 +169,7 @@ describe('Importer', function () {
         });
 
         it('Find few files, multiple subdirectory recursion', async function () {
-            const importer = new Importer(DefaultConfig);
-            const readdirStub = Sinon.stub(fs, 'readdirSync').throws(
-                `Invalid path`
-            );
+            readdirStub.throws(`Invalid path`);
             readdirStub
                 .withArgs(
                     '/root/path1/path2/path3',
@@ -229,6 +233,8 @@ describe('Importer', function () {
                     } as any,
                 ]);
 
+            const importer = new Importer(DefaultConfig);
+
             const files = await importer.findFiles('/root');
 
             expect(files.length).to.eq(5);
@@ -258,10 +264,7 @@ describe('Importer', function () {
         });
 
         it('Find few files, empty subdirectories', async function () {
-            const importer = new Importer(DefaultConfig);
-            const readdirStub = Sinon.stub(fs, 'readdirSync').throws(
-                `Invalid path`
-            );
+            readdirStub.throws(`Invalid path`);
             readdirStub
                 .withArgs(
                     '/root/path1/path2/path3',
@@ -304,6 +307,8 @@ describe('Importer', function () {
                     } as any,
                 ]);
 
+            const importer = new Importer(DefaultConfig);
+
             const files = await importer.findFiles('/root');
 
             expect(files.length).to.eq(1);
@@ -319,11 +324,12 @@ describe('Importer', function () {
 
     describe('getFileInfos', function () {
         it('Returns empty on empty input', async function () {
-            const importer = new Importer(DefaultConfig);
             const getFileInfoStub = Sinon.stub(
                 Importer.prototype,
                 'getFileInfo'
             ).resolves({} as any);
+
+            const importer = new Importer(DefaultConfig);
 
             const fileInfos = await importer.getFileInfos([]);
 
@@ -332,11 +338,12 @@ describe('Importer', function () {
         });
 
         it('Calls getFileInfo for each file', async function () {
-            const importer = new Importer(DefaultConfig);
             const getFileInfoStub = Sinon.stub(
                 Importer.prototype,
                 'getFileInfo'
             ).resolves({} as any);
+
+            const importer = new Importer(DefaultConfig);
 
             const fileInfos = await importer.getFileInfos([
                 {
@@ -367,13 +374,19 @@ describe('Importer', function () {
     });
 
     describe('getFileInfo', function () {
+        let readFileStub: SinonStub;
+        let statSyncStub: SinonStub;
+
+        beforeEach(function () {
+            readFileStub = Sinon.stub(fs, 'readFile');
+            statSyncStub = Sinon.stub(fs, 'statSync');
+        });
+
         it('Missing file returns error result with null date', async function () {
-            const importer = new Importer(DefaultConfig);
-            const readFileStub = Sinon.stub(fs, 'readFile');
             readFileStub.yields(null, Buffer.from(''));
-            const statSyncStub = Sinon.stub(fs, 'statSync').returns(
-                ({} as any) as fs.Stats
-            );
+            statSyncStub.returns(({} as any) as fs.Stats);
+
+            const importer = new Importer(DefaultConfig);
 
             const fileInfo = await importer.getFileInfo({
                 name: 'testFile3.txt',
@@ -392,13 +405,13 @@ describe('Importer', function () {
         });
 
         it('Non Exif parseable file returns error result with file modified date', async function () {
-            const importer = new Importer(DefaultConfig);
             const fakeDate = new Date('2021-11-06T21:43:56.000Z');
-            const readFileStub = Sinon.stub(fs, 'readFile');
             readFileStub.yields(null, Buffer.from(''));
-            const statSyncStub = Sinon.stub(fs, 'statSync').returns(({
+            statSyncStub.returns(({
                 mtime: fakeDate,
             } as any) as fs.Stats);
+
+            const importer = new Importer(DefaultConfig);
 
             const fileInfo = await importer.getFileInfo({
                 name: 'testFile3.txt',
@@ -421,12 +434,12 @@ describe('Importer', function () {
         });
 
         it('Exif parseable file returns correct date', async function () {
-            const importer = new Importer(DefaultConfig);
-            const readFileStub = Sinon.stub(fs, 'readFile');
             readFileStub.yields(
                 null,
                 fs.readFileSync('./tests/testdata/sampleImg.jpg')
             );
+
+            const importer = new Importer(DefaultConfig);
 
             const fileInfo = await importer.getFileInfo({
                 name: 'testFile3.txt',
@@ -446,14 +459,14 @@ describe('Importer', function () {
         });
 
         it('Exif parseable file without date returns null date', async function () {
-            const importer = new Importer(DefaultConfig);
-            const readFileStub = Sinon.stub(fs, 'readFile');
             readFileStub.yields(
                 null,
                 fs.readFileSync(
                     './tests/testdata/sampleImg_without_exif_date.jpg'
                 )
             );
+
+            const importer = new Importer(DefaultConfig);
 
             const fileInfo = await importer.getFileInfo({
                 name: 'testFile3.txt',
@@ -575,21 +588,31 @@ describe('Importer', function () {
     });
 
     describe('writeImportData', function () {
-        it('Empty tasks make empty import data file', async function () {
-            const importer = new Importer(DefaultConfig);
+        let existsSyncStub: SinonStub;
+        let writeFileSyncStub: SinonStub;
+        let mkdirSyncStub: SinonStub;
+        let getTimeForFileNameStub: SinonStub;
 
-            const existsSyncStub = Sinon.stub(fs, 'existsSync').returns(true);
-            const getTimeForFileNameStub = Sinon.stub(
-                utils,
-                'getTimeForFileName'
-            ).returns('0000-0000');
-            const writeFileSyncStub = Sinon.stub(fs, 'writeFileSync');
+        beforeEach(function () {
+            existsSyncStub = Sinon.stub(fs, 'existsSync').throws();            
+            writeFileSyncStub = Sinon.stub(fs, 'writeFileSync').throws();
+            mkdirSyncStub = Sinon.stub(fs, 'mkdirSync').throws();
+            getTimeForFileNameStub = Sinon.stub(utils, 'getTimeForFileName');
+
+            getTimeForFileNameStub.returns('0000-0000');
+        });
+
+        it('Empty tasks make empty import data file', async function () {
+            existsSyncStub.returns(true);
+            writeFileSyncStub.returns(null);
 
             const tasks: OutputTasks = {
                 requiredDirectories: [],
                 moveTasks: [],
                 problematicFiles: [],
             };
+
+            const importer = new Importer(DefaultConfig);
 
             const importDataFile = await importer.writeImportData(tasks);
 
@@ -610,21 +633,17 @@ describe('Importer', function () {
         });
 
         it('Creates output dir if it does not exist', async function () {
-            const importer = new Importer(DefaultConfig);
-
-            const existsSyncStub = Sinon.stub(fs, 'existsSync').returns(false);
-            const mkdirSyncStub = Sinon.stub(fs, 'mkdirSync');
-            const getTimeForFileNameStub = Sinon.stub(
-                utils,
-                'getTimeForFileName'
-            ).returns('0000-0000');
-            const writeFileSyncStub = Sinon.stub(fs, 'writeFileSync');
+            existsSyncStub.returns(false);
+            mkdirSyncStub.returns(null);
+            writeFileSyncStub.returns(null);
 
             const tasks: OutputTasks = {
                 requiredDirectories: [],
                 moveTasks: [],
                 problematicFiles: [],
             };
+
+            const importer = new Importer(DefaultConfig);
 
             const importDataFile = await importer.writeImportData(tasks);
 

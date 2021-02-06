@@ -18,13 +18,19 @@ describe('Executor', function () {
     });
 
     describe('execute', function () {
+        let statSyncStub: SinonStub;
+        let readFileSyncStub: SinonStub;
+
+        beforeEach(function () {
+            statSyncStub = Sinon.stub(fs, 'statSync').throws();
+            readFileSyncStub = Sinon.stub(fs, 'readFileSync').throws();
+        });
+
         it('Calls the correct functions on execute, taskfile with empty arrays', async function () {
-            const statSyncStub = Sinon.stub(fs, 'statSync')
-                .withArgs('./input-file.txt')
-                .returns({
-                    isFile: () => true,
-                } as any);
-            const readFileSyncStub = Sinon.stub(fs, 'readFileSync').returns(
+            statSyncStub.withArgs('./input-file.txt').returns({
+                isFile: () => true,
+            } as any);
+            readFileSyncStub.returns(
                 Buffer.from(`{
     "requiredDirectories": [],
     "moveTasks": [],
@@ -60,14 +66,10 @@ describe('Executor', function () {
         });
 
         it('Throws error with empty taskfile', async function () {
-            const statSyncStub = Sinon.stub(fs, 'statSync')
-                .withArgs('./input-file.txt')
-                .returns({
-                    isFile: () => true,
-                } as any);
-            const readFileSyncStub = Sinon.stub(fs, 'readFileSync').returns(
-                Buffer.from('')
-            );
+            statSyncStub.withArgs('./input-file.txt').returns({
+                isFile: () => true,
+            } as any);
+            readFileSyncStub.returns(Buffer.from(''));
             const prepareTaskListStub = Sinon.stub(
                 Executor.prototype,
                 'prepareTaskList'
@@ -237,12 +239,18 @@ describe('Executor', function () {
     });
 
     describe('saveTaskList', function () {
+        let getTimeForFileNameStub: SinonStub;
+        let writeFileSyncStub: SinonStub;
+
+        beforeEach(function () {
+            getTimeForFileNameStub = Sinon.stub(utils, 'getTimeForFileName');
+            writeFileSyncStub = Sinon.stub(fs, 'writeFileSync').throws();
+
+            getTimeForFileNameStub.returns('____');
+        });
+
         it('Saves empty task list', async function () {
-            const writeFileSyncStub = Sinon.stub(fs, 'writeFileSync');
-            const getTimeForFileNameStub = Sinon.stub(
-                utils,
-                'getTimeForFileName'
-            ).returns('____');
+            writeFileSyncStub.returns(null);
 
             const tasks: ExecutorTasks = {
                 mkdir: [],
@@ -266,11 +274,7 @@ describe('Executor', function () {
         });
 
         it('Saves the same tasks as input, with human readable formatting', async function () {
-            const writeFileSyncStub = Sinon.stub(fs, 'writeFileSync');
-            const getTimeForFileNameStub = Sinon.stub(
-                utils,
-                'getTimeForFileName'
-            ).returns('____');
+            writeFileSyncStub.returns(null);
 
             const tasks: ExecutorTasks = {
                 mkdir: [
@@ -329,22 +333,29 @@ describe('Executor', function () {
     });
 
     describe('runTasks', function () {
+        let getTimeForFileNameStub: SinonStub;
+        let mkdirSyncStub: SinonStub;
+        let appendFileSyncStub: SinonStub;
+        let renameSyncStub: SinonStub;
+        let copyFileSyncStub: SinonStub;
+        let unlinkSyncStub: SinonStub;
+
+        beforeEach(function () {
+            getTimeForFileNameStub = Sinon.stub(utils, 'getTimeForFileName');
+            mkdirSyncStub = Sinon.stub(fs, 'mkdirSync');
+            appendFileSyncStub = Sinon.stub(fs, 'appendFileSync');
+            renameSyncStub = Sinon.stub(fs, 'renameSync');
+            copyFileSyncStub = Sinon.stub(fs, 'copyFileSync');
+            unlinkSyncStub = Sinon.stub(fs, 'unlinkSync');
+
+            getTimeForFileNameStub.returns('____');
+        });
+
         it('Does nothing, still saves log for empty task list', async function () {
-            const getTimeForFileNameStub = Sinon.stub(
-                utils,
-                'getTimeForFileName'
-            ).returns('____');
-            const mkdirSyncStub = Sinon.stub(fs, 'mkdirSync');
             let appendFileContents = '';
-            const appendFileSyncStub = Sinon.stub(
-                fs,
-                'appendFileSync'
-            ).callsFake((file, data) => {
+            appendFileSyncStub.callsFake((file, data) => {
                 appendFileContents += data + '\n';
             });
-            const renameSyncStub = Sinon.stub(fs, 'renameSync');
-            const copyFileSyncStub = Sinon.stub(fs, 'copyFileSync');
-            const unlinkSyncStub = Sinon.stub(fs, 'unlinkSync');
 
             const tasks: ExecutorTasks = {
                 mkdir: [],
