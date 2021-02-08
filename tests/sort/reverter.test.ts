@@ -1,6 +1,6 @@
 import { expect } from 'chai';
 import fs from 'fs';
-import Sinon, { SinonStub } from 'sinon';
+import Sinon, { SinonMock, SinonStub, SinonStubbedInstance } from 'sinon';
 import { Reverter } from '../../lib/sort/reverter';
 import { MoveTask } from '../../lib/sort/revertTypes';
 
@@ -111,6 +111,71 @@ describe('Reverter', function () {
             expect(parsedResult.length).to.eq(0);
         });
     });
+
+    describe('extractTask', function () {
+        it('Returns null on empty input', async function () {
+            const reverter = new Reverter('./task-file.txt');
+
+            const extractedTask = await reverter.extractTask('');
+
+            expect(extractedTask).to.be.null;
+        });
+
+        it('Returns null on unknown operation', async function () {
+            const reverter = new Reverter('./task-file.txt');
+
+            const extractedTask = await reverter.extractTask(testTasks.unknown);
+
+            expect(extractedTask).to.be.null;
+        });
+
+        it('Extracts move task', async function () {
+            const reverter = new Reverter('./task-file.txt');
+
+            const extractedTask = await reverter.extractTask(testTasks.mv);
+
+            expect(extractedTask).to.deep.eq({
+                moveType: 'mv',
+                old: './testing/ingest/DCIM/Camera/IMG_20219403_942309.jpg',
+                new: './testing/output/2021/12-31/IMG_20219403_942309.jpg',
+            });
+        });
+
+        it('Extracts copy task', async function () {
+            const reverter = new Reverter('./task-file.txt');
+
+            const extractedTask = await reverter.extractTask(testTasks.cp);
+
+            expect(extractedTask).to.deep.eq({
+                moveType: 'cp',
+                old: './testing/ingest/DCIM/Camera/IMG_20219403_942309.jpg',
+                new: './testing/output/2021/12-31/IMG_20219403_942309.jpg',
+            });
+        });
+
+        it('Extracts copy-remove task', async function () {
+            const reverter = new Reverter('./task-file.txt');
+
+            const extractedTask = await reverter.extractTask(testTasks.cpRm);
+
+            expect(extractedTask).to.deep.eq({
+                moveType: 'cpRm',
+                old: './testing/ingest/DCIM/Camera/IMG_20219403_942309.jpg',
+                new: './testing/output/2021/12-31/IMG_20219403_942309.jpg',
+            });
+        });
+    });
+
+    describe('revertOldTasks', function () {
+        let fsStub: SinonStubbedInstance<typeof fs>;
+
+        beforeEach(function () {
+            fsStub = Sinon.stub(fs);
+            fsStub.existsSync.throws();
+            fsStub.renameSync.throws();
+            fsStub.copyFileSync.throws();
+        });
+    });
 });
 
 const testTaskFileContents = `mkdir "./testing/output/2021/12-31"
@@ -122,3 +187,14 @@ cp "./testing/ingest/DCIM/Camera/IMG_20214930_943009.jpg" "./testing/output/2021
 cp "./testing/ingest/DCIM/Camera/IMG_20214390_439090.jpg" "./testing/output/2021/11-10/IMG_20214390_439090.jpg"
 cp "./testing/ingest/DCIM/Camera/IMG_20204930_439099.jpg" "./testing/output/2020/01-01/IMG_20214930_439099.jpg"
 `;
+
+const testTasks = {
+    mkdir: 'mkdir "./testing/output/2021/12-31"',
+    mv:
+        'mv "./testing/ingest/DCIM/Camera/IMG_20219403_942309.jpg" "./testing/output/2021/12-31/IMG_20219403_942309.jpg"',
+    cp:
+        'cp "./testing/ingest/DCIM/Camera/IMG_20219403_942309.jpg" "./testing/output/2021/12-31/IMG_20219403_942309.jpg"',
+    cpRm:
+        'cpRm "./testing/ingest/DCIM/Camera/IMG_20219403_942309.jpg" "./testing/output/2021/12-31/IMG_20219403_942309.jpg"',
+    unknown: 'op foo bar',
+};

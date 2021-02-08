@@ -92,7 +92,12 @@ export interface ReverterInterface {
     extractTask(task: string): Promise<MoveTask | null>;
 
     /**
-     * Reverts the processed tasks.
+     * Performs revert tasks on every item.
      */
     revertOldTasks(oldMoveTasks: MoveTask[]): Promise<void>;
+
+    /**
+     * Performs revert tasks.
+     */
+    revertOldTask(oldMoveTask: MoveTask): Promise<void>;
 }

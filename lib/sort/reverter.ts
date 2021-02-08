@@ -52,35 +52,41 @@ class Reverter implements ReverterInterface {
 
     revertOldTasks(oldMoveTasks: MoveTask[]): Promise<void> {
         for (const task of oldMoveTasks) {
-            try {
-                console.log(
-                    `Reverting (${task.moveType}) "${task.new}" into "${task.old}"`
-                );
-                if (task.moveType == 'mv') {
-                    if (fs.existsSync(task.old)) {
-                        console.log(
-                            `Old file exists. It will not be overwritten - ${task.old}`
-                        );
-                        continue;
-                    }
+            this.revertOldTask(task);
+        }
+        return Promise.resolve();
+    }
 
-                    fs.renameSync(task.new, task.old);
-                } else if (task.moveType == 'cp' || task.moveType == 'cpRm') {
-                    if (task.old == task.new) {
-                        continue;
-                    }
+    revertOldTask(task: MoveTask): Promise<void> {
+        try {
+            console.log(
+                `Reverting (${task.moveType}) "${task.new}" into "${task.old}"`
+            );
+            if (task.moveType == 'mv') {
+                if (fs.existsSync(task.old)) {
+                    console.log(
+                        `Old file exists. It will not be overwritten - ${task.old}`
+                    );
 
-                    if (!fs.existsSync(task.old)) {
-                        fs.copyFileSync(task.new, task.old);
-                    }
-
-                    if (fs.existsSync(task.new)) {
-                        fs.rmSync(task.new);
-                    }
+                    return Promise.resolve();
                 }
-            } catch (err) {
-                console.log(`Failed to revert ${task.old} - ${err}`);
+
+                fs.renameSync(task.new, task.old);
+            } else if (task.moveType == 'cp' || task.moveType == 'cpRm') {
+                if (task.old == task.new) {
+                    return Promise.resolve();
+                }
+
+                if (!fs.existsSync(task.old)) {
+                    fs.copyFileSync(task.new, task.old);
+                }
+
+                if (fs.existsSync(task.new)) {
+                    fs.rmSync(task.new);
+                }
             }
+        } catch (err) {
+            console.log(`Failed to revert ${task.old} - ${err}`);
         }
 
         return Promise.resolve();
