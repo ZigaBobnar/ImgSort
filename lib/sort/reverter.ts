@@ -50,10 +50,11 @@ class Reverter implements ReverterInterface {
         return Promise.resolve(null);
     }
 
-    revertOldTasks(oldMoveTasks: MoveTask[]): Promise<void> {
+    async revertOldTasks(oldMoveTasks: MoveTask[]): Promise<void> {
         for (const task of oldMoveTasks) {
-            this.revertOldTask(task);
+            await this.revertOldTask(task);
         }
+
         return Promise.resolve();
     }
 
@@ -82,7 +83,7 @@ class Reverter implements ReverterInterface {
                 }
 
                 if (fs.existsSync(task.new)) {
-                    fs.rmSync(task.new);
+                    fs.unlinkSync(task.new);
                 }
             }
         } catch (err) {

@@ -1,6 +1,6 @@
 import { expect } from 'chai';
 import fs from 'fs';
-import Sinon, { SinonMock, SinonStub, SinonStubbedInstance } from 'sinon';
+import Sinon, { SinonStub, SinonStubbedInstance } from 'sinon';
 import { Reverter } from '../../lib/sort/reverter';
 import { MoveTask } from '../../lib/sort/revertTypes';
 
@@ -167,6 +167,38 @@ describe('Reverter', function () {
     });
 
     describe('revertOldTasks', function () {
+        let revertOldTaskStub: SinonStub;
+
+        beforeEach(function () {
+            revertOldTaskStub = Sinon.stub(Reverter.prototype, 'revertOldTask');
+            revertOldTaskStub.rejects();
+        });
+
+        it('Does nothing when no tasks are present', async function () {
+            const reverter = new Reverter('./task-file.txt');
+
+            await reverter.revertOldTasks([]);
+
+            expect(revertOldTaskStub.called).to.be.false;
+        });
+
+        it('Calls revert for each task', async function () {
+            revertOldTaskStub.withArgs(testMoveTasks[0]).resolves();
+            revertOldTaskStub.withArgs(testMoveTasks[1]).resolves();
+            revertOldTaskStub.withArgs(testMoveTasks[2]).resolves();
+
+            const reverter = new Reverter('./task-file.txt');
+
+            await reverter.revertOldTasks(testMoveTasks);
+
+            expect(revertOldTaskStub.callCount).to.eq(3);
+            expect(revertOldTaskStub.args[0][0]).to.deep.eq(testMoveTasks[0]);
+            expect(revertOldTaskStub.args[1][0]).to.deep.eq(testMoveTasks[1]);
+            expect(revertOldTaskStub.args[2][0]).to.deep.eq(testMoveTasks[2]);
+        });
+    });
+
+    describe('revertOldTask', function () {
         let fsStub: SinonStubbedInstance<typeof fs>;
 
         beforeEach(function () {
@@ -174,6 +206,81 @@ describe('Reverter', function () {
             fsStub.existsSync.throws();
             fsStub.renameSync.throws();
             fsStub.copyFileSync.throws();
+            fsStub.unlinkSync.throws();
+        });
+
+        it('Moves file to old location (mv)', async function () {
+            const task = testMoveTasks[1];
+            fsStub.existsSync.withArgs(task.old).returns(false);
+            fsStub.renameSync.withArgs(task.new, task.old).returns();
+
+            const reverter = new Reverter('./task-file.txt');
+
+            await reverter.revertOldTask(task);
+
+            expect(fsStub.existsSync.calledOnce).to.be.true;
+            expect(fsStub.renameSync.calledOnce).to.be.true;
+        });
+
+        it('Does nothing when moving file to old location ant old file exists (mv)', async function () {
+            const task = testMoveTasks[1];
+            fsStub.existsSync.withArgs(task.old).returns(true);
+
+            const reverter = new Reverter('./task-file.txt');
+
+            await reverter.revertOldTask(task);
+
+            expect(fsStub.existsSync.calledOnce).to.be.true;
+            expect(fsStub.renameSync.called).to.be.false;
+        });
+
+        it('Copies file to old location and deletes the old-new file (cp)', async function () {
+            const task = testMoveTasks[0];
+            fsStub.existsSync.withArgs(task.old).returns(false);
+            fsStub.existsSync.withArgs(task.new).returns(true);
+            fsStub.copyFileSync.withArgs(task.new, task.old).returns();
+
+            const reverter = new Reverter('./task-file.txt');
+
+            await reverter.revertOldTask(task);
+
+            expect(fsStub.existsSync.calledTwice).to.be.true;
+            expect(fsStub.copyFileSync.calledOnce).to.be.true;
+            expect(fsStub.unlinkSync.calledOnce).to.be.true;
+        });
+
+        it('Does nothing if file paths are same (cp)', async function () {
+            const task: MoveTask = {
+                moveType: 'cp',
+                new: './file/1',
+                old: './file/1',
+            };
+            fsStub.existsSync.withArgs(task.old).returns(false);
+            fsStub.existsSync.withArgs(task.new).returns(true);
+            fsStub.copyFileSync.withArgs(task.new, task.old).returns();
+
+            const reverter = new Reverter('./task-file.txt');
+
+            await reverter.revertOldTask(task);
+
+            expect(fsStub.existsSync.called).to.be.false;
+            expect(fsStub.copyFileSync.called).to.be.false;
+            expect(fsStub.unlinkSync.called).to.be.false;
+        });
+
+        it('Copies file to old location and deletes the old-new file (cpRm)', async function () {
+            const task = testMoveTasks[2];
+            fsStub.existsSync.withArgs(task.old).returns(false);
+            fsStub.existsSync.withArgs(task.new).returns(true);
+            fsStub.copyFileSync.withArgs(task.new, task.old).returns();
+
+            const reverter = new Reverter('./task-file.txt');
+
+            await reverter.revertOldTask(task);
+
+            expect(fsStub.existsSync.calledTwice).to.be.true;
+            expect(fsStub.copyFileSync.calledOnce).to.be.true;
+            expect(fsStub.unlinkSync.calledOnce).to.be.true;
         });
     });
 });
@@ -198,3 +305,21 @@ const testTasks = {
         'cpRm "./testing/ingest/DCIM/Camera/IMG_20219403_942309.jpg" "./testing/output/2021/12-31/IMG_20219403_942309.jpg"',
     unknown: 'op foo bar',
 };
+
+const testMoveTasks: MoveTask[] = [
+    {
+        moveType: 'cp',
+        new: './out/1',
+        old: './in/1',
+    },
+    {
+        moveType: 'mv',
+        new: './out/2',
+        old: './in/2',
+    },
+    {
+        moveType: 'cpRm',
+        new: './out/3',
+        old: './in/3',
+    },
+];
